@@ -362,11 +362,15 @@ class SWAInferenceHandler(object):
         print("="*50 + "\n")
 
         # Fine-tune temperature on validation set
-        print("Tuning temperature scaling...")
+        print("Tuning temperature scaling (using 20 samples for speed)...")
         best_ece = float('inf')
         best_temp = 1.5
 
-        for temp in torch.linspace(1.0, 2.5, 30):
+        # Temporarily reduce samples for faster calibration
+        old_num_samples = self.num_bma_samples
+        self.num_bma_samples = 20  # Reduced for speed
+
+        for temp in torch.linspace(1.0, 2.5, 10):  # Only 10 temperatures
             self._temperature = temp.item()
             val_probs_temp = self.predict_probs(val_images)
 
@@ -379,6 +383,9 @@ class SWAInferenceHandler(object):
             if cal_data['ece'] < best_ece:
                 best_ece = cal_data['ece']
                 best_temp = temp.item()
+
+        # Restore original number of samples for actual predictions
+        self.num_bma_samples = old_num_samples
 
         self._temperature = best_temp
         print(f"✓ Selected temperature: {best_temp:.4f} (ECE: {best_ece:.4f})\n")
